@@ -64,6 +64,8 @@ export type SocialProfile = {
   link: string;
 };
 
+export type { GoldReport } from "./gold";
+
 export type AuthorType = {
   name: string;
   handle: string;
