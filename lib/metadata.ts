@@ -35,7 +35,7 @@ const siteMetadata: SiteMetaData = {
   newsletterProvider: "mailerlite",
   newsletterUrl: "",
   analyticsProvider: "umami",
-  defaultTheme: "system",
+  defaultTheme: "dark",
   activeAnnouncement: false,
   announcement: {
     buttonText: "",
