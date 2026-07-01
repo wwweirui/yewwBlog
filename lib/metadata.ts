@@ -18,7 +18,7 @@ export const defaultAuthor: AuthorType = {
   availableForWork: true,
   location: {
     city: "shanghai",
-    media: "/losangeles.jpg",
+    media: "/shanghai.png",
   },
 };
 

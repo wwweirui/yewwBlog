@@ -15,7 +15,7 @@ export default async function SocialPage() {
       <div className="container pt-10">
         <div className="flex flex-col items-center justify-center">
           <div className="flex flex-col items-center justify-center md:flex-row">
-            <Image src="/avatar-home.png" alt={defaultAuthor.name} width={200} height={200} />
+            <Image src="/avatar.svg" alt={defaultAuthor.name} width={200} height={200} />
             <div className="mt-4 text-center md:ml-4 md:text-left">
               <h1 className="font-heading text-4xl font-bold">{defaultAuthor.name}</h1>
               <p>{defaultAuthor.handle}</p>
