@@ -14,6 +14,10 @@ export const navigationLinks: NavItem[] = [
     content,
   },
   {
+    title: "黄金",
+    href: "/gold",
+  },
+  {
     title: "Projects",
     href: "/projects",
   },
