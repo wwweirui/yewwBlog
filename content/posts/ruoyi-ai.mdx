@@ -12,20 +12,439 @@ description: "Ruoyi AI 开源项目的二次开发与工程实践记录。"
 status: published
 ---
 
-## 项目简介
+# RuoYi AI 项目学习指引
 
-## 为什么选择 Ruoyi AI
+> 全栈式 AI 开发平台 — 从入门到精通  
+> 基于 RuoYi-Vue-Plus 演化，深度融合 LangChain4j + LangGraph4j 企业级 AI 框架
 
-## 环境搭建与部署
+---
 
-## 二次开发实践
+## 📚 总览
 
-### 1. ...
+RuoYi AI 是一款**企业级全栈 AI 开发平台**，你可以把它理解为：
 
-### 2. ...
+- **后端**：Spring Boot 3.5 + JDK 17 + MyBatis-Plus（传统企业级底座）
+- **AI 核心**：LangChain4j 1.13.0 + LangGraph4j 1.5.3（多模型/多Agent/RAG/工作流）
+- **前端**：Vue 3 + Element-Plus-X（独立仓库）
+- **定位**：单体多模块 Maven 项目，非微服务
 
-## 技术要点总结
+| 项目规模         | 技术栈广度         | AI 深度                 | 适用人群     |
+| ---------------- | ------------------ | ----------------------- | ------------ |
+| ~1000+ Java 文件 | 极高（全栈企业级） | 深（类 LangChain 生态） | 中高级开发者 |
 
-## 踩坑记录
+---
 
-## 后续计划
+## 🗺️ 总体学习路径
+
+```
+阶段一：环境搭建与运行  (1-2 天)
+  │
+  ▼
+阶段二：Java 企业级底座  (1-2 周)
+  │   └── Spring Boot / MyBatis-Plus / Sa-Token / Redis
+  │
+  ▼
+阶段三：AI 核心引擎      (2-3 周)
+  │   └── 多模型接入 / RAG / Agent / MCP
+  │
+  ▼
+阶段四：高级特性         (1-2 周)
+      └── 工作流 / AIFlow / 可观测性 / 多租户
+```
+
+---
+
+## 阶段一：环境搭建与本地运行
+
+### 1.1 依赖清单
+
+| 组件   | 版本                   | 用途       | 学习重点                                          |
+| ------ | ---------------------- | ---------- | ------------------------------------------------- |
+| JDK    | 17+                    | 运行环境   | 了解 records、sealed classes、switch 增强等新特性 |
+| Maven  | 3.8+                   | 构建工具   | 理解 Maven 多模块聚合、BOM 依赖管理               |
+| MySQL  | 8.0+                   | 业务数据库 | 事务、索引优化（AI 场景下向量检索配合）           |
+| Redis  | 6.2+                   | 缓存/会话  | 缓存策略、分布式锁、Redisson                      |
+| 向量库 | Milvus/Weaviate/Qdrant | RAG 存储   | 向量检索原理、嵌入（可选后学）                    |
+
+### 1.2 启动流程
+
+```bash
+# 1. 编译项目
+cd ruoyi-ai
+mvn clean install -DskipTests
+
+# 2. 启动后端
+cd ruoyi-admin
+mvn spring-boot:run
+
+# 3. 访问验证
+curl http://localhost:6039/actuator/health -u ruoyi:123456
+```
+
+### 1.3 推荐 VS Code 插件
+
+| 插件                           | 用途                  |
+| ------------------------------ | --------------------- |
+| **Extension Pack for Java**    | Java 开发必备         |
+| **Spring Boot Extension Pack** | Spring Boot 开发支持  |
+| **MyBatisX**                   | MyBatis-Plus 代码跳转 |
+| **Lombok Annotations**         | Lombok 语法支持       |
+| **Rainbow Brackets**           | 括号染色阅读          |
+| **Maven Helper**               | Maven 依赖分析        |
+
+---
+
+## 阶段二：Java 企业级底座（约 1-2 周）
+
+### 2.1 项目模块结构理解
+
+先花一天时间理解项目的**模块划分**：
+
+```
+ruoyi-ai
+├── ruoyi-admin        ← 启动入口（唯一可执行模块）
+├── ruoyi-common/      ← 24 个通用子模块（基础设施层）
+│   ├── common-core      # 工具类、常量、基础实体
+│   ├── common-mybatis   # MyBatis-Plus 配置 + 多租户
+│   ├── common-redis     # Redisson 缓存 + 分布式锁
+│   ├── common-satoken   # JWT + Sa-Token 认证
+│   ├── common-web       # 全局异常、统一响应体
+│   ├── common-chat      # AI 通用抽象（重点🌟）
+│   ├── common-sse       # SSE 流式推送
+│   └── ...
+├── ruoyi-modules/     ← 5 个业务模块
+│   ├── ruoyi-system     # RBAC 权限、字典、配置
+│   ├── ruoyi-chat       # AI 核心（重点🌟）
+│   ├── ruoyi-workflow   # 工作流
+│   ├── ruoyi-aiflow     # AI 流程编排（重点🌟）
+│   └── ruoyi-generator  # 代码生成器
+└── ruoyi-extend/      ← 扩展服务（独立部署）
+    ├── ruoyi-monitor-admin   # 监控
+    └── ruoyi-snailjob-server # 分布式任务调度
+```
+
+> **⚠️ 关键约束**：业务模块之间禁止横向依赖，只能依赖 `ruoyi-common-*`
+
+### 2.2 核心知识点（按优先级排序）
+
+#### 优先级 ★★★（必须掌握）
+
+| 知识点                   | 源码位置                                        | 学习要点                                                                      |
+| ------------------------ | ----------------------------------------------- | ----------------------------------------------------------------------------- |
+| **Spring Boot 自动配置** | `application.yml` + 各模块 `auto-configuration` | 了解 `@SpringBootApplication` 扫描机制、Maven profile 切换                    |
+| **MyBatis-Plus**         | `ruoyi-common-mybatis`                          | `BaseMapperPlus`、分页、多租户拦截器、逻辑删除                                |
+| **Sa-Token 认证**        | `ruoyi-common-satoken`                          | 登录流程（`AuthController.login`→`IAuthStrategy.login`）、JWT Token、权限注解 |
+| **统一响应体**           | `ruoyi-common-web` → `R.java`                   | 前端后端的 `code/msg/data` 契约、全局异常处理                                 |
+
+#### 优先级 ★★（重要）
+
+| 知识点            | 源码位置              | 学习要点                                     |
+| ----------------- | --------------------- | -------------------------------------------- |
+| **Redisson 缓存** | `ruoyi-common-redis`  | 分布式锁 `@Lock4j`、`RedisUtils` 工具类      |
+| **动态数据源**    | `application-dev.yml` | 多数据源配置（master/agent）、读写分离       |
+| **多租户**        | `ruoyi-common-tenant` | `tenant_id` 字段注入、数据隔离               |
+| **Hutool 工具库** | `ruoyi-common-core`   | `StrUtil`、`BeanUtil`、`CollUtil` 等常用工具 |
+
+#### 优先级 ★（了解）
+
+| 知识点     | 说明                                   |
+| ---------- | -------------------------------------- |
+| 代码生成器 | `ruoyi-generator` 可自动生成 CRUD 代码 |
+| 工作流     | `ruoyi-workflow` 基于 Warm-Flow        |
+| 文件存储   | `ruoyi-common-oss` 基于 S3 协议        |
+
+### 2.3 推荐练习
+
+1. **追踪一次登录请求**：在 `AuthController.login` 打断点，完整走一遍登录流程
+2. **查看数据权限实现**：在 `SysUserServiceImpl` 中看 `DataScope` 注解如何处理
+3. **修改一个 CRUD 接口**：用代码生成器生成一个新的业务模块，理解四层架构
+
+---
+
+## 阶段三：AI 核心引擎（约 2-3 周）
+
+这是 RuoYi AI **最核心、最独特**的部分，也是最大亮点。
+
+### 3.1 AI 架构全景
+
+```
+                    ┌─────────────────┐
+                    │  ChatServiceFacade │ ← 统一门面
+                    └────────┬────────┘
+                             │
+           ┌─────────────────┼─────────────────┐
+           ▼                 ▼                  ▼
+   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+   │  模型管理     │ │  知识检索 RAG │ │  多智能体     │
+   │ (ChatService)│ │ (Knowledge)  │ │ (Agent)      │
+   └──────────────┘ └──────────────┘ └──────────────┘
+                             │
+                    ┌────────┴────────┐
+                    │  MCP 工具层     │
+                    └─────────────────┘
+```
+
+### 3.2 学习路线图
+
+```
+第1步：理解 LangChain4j 基础概念
+  │
+  ├── ChatLanguageModel（聊天模型）
+  ├── EmbeddingModel（嵌入模型）
+  ├── ContentRetriever（检索器）
+  ├── AiServices（AI 服务/Agent）
+  └── Tool（工具/函数调用）
+  │
+  ▼
+第2步：模型管理（ChatServiceFactory + 工厂模式）
+  │
+  ├── AbstractChatService（抽象基类）
+  ├── OpenAIServiceImpl（OpenAI 实现）
+  ├── DeepseekServiceImpl（DeepSeek 实现）
+  └── 新增模型：只需继承 AbstractChatService
+  │
+  ▼
+第3步：RAG 知识检索
+  │
+  ├── KnowledgeRetrievalServiceImpl（高级 RAG 流水线）
+  │    ├── 粗召回（向量 + 关键词并行）
+  │    ├── RRF 融合（Reciprocal Rank Fusion）
+  │    ├── 重排序（Rerank）
+  │    └── 阈值过滤
+  ├── VectorStoreStrategyFactory（向量库策略模式）
+  │    ├── MilvusVectorStoreStrategy
+  │    ├── WeaviateVectorStoreStrategy
+  │    └── QdrantVectorStoreStrategy
+  └── 知识库处理流水线（上传 → 解析 → 分片 → 向量化 → 存储）
+  │
+  ▼
+第4步：多智能体（Supervisor 模式）
+  │
+  ├── 声明式 Agent（@Agent + 接口定义，无需实现类）
+  │    ├── SupervisorAgent（调度中枢）
+  │    ├── WebSearchAgent（网页搜索）
+  │    ├── SkillsAgent（文档技能）
+  │    ├── SqlAgent（数据库查询）
+  │    ├── ChartGenAgent（图表生成）
+  │    └── EchartsAgent（数据可视化）
+  ├── @Tool 注解（自定义工具函数）
+  └── MCP 工具集成（McpToolProvider）
+  │
+  ▼
+第5步：MCP 协议（Model Context Protocol）
+  │
+  ├── McpClient（Playwright / Filesystem / Bing Search）
+  ├── StdioMcpTransport（进程间通信）
+  └── McpToolProvider（工具聚合器）
+  │
+  ▼
+第6步：AI 流程编排（AIFlow + LangGraph4j）
+  │
+  ├── WorkflowEngine（工作流引擎）
+  ├── 节点类型（LLM / 知识检索 / HTTP / 图像 / 分类 / 人工审核）
+  └── 流式执行 + 中断恢复
+```
+
+### 3.3 关键源码文件（按学习顺序）
+
+| 学习顺序 | 文件                                  | 说明                                                |
+| -------- | ------------------------------------- | --------------------------------------------------- |
+| 1️⃣       | `ChatServiceFactory.java`             | 工厂模式，理解如何动态发现所有模型实现              |
+| 2️⃣       | `AbstractChatService.java`            | 模型抽象基类，理解模板方法模式                      |
+| 3️⃣       | `OpenAIServiceImpl.java`              | 一个具体模型实现，了解 `buildStreamingChatModel()`  |
+| 4️⃣       | `ChatServiceFacade.java`              | 统一门面，理解 SSE 流式对话的完整流程               |
+| 5️⃣       | `VectorStoreStrategyFactory.java`     | 策略模式，理解向量库切换机制                        |
+| 6️⃣       | `KnowledgeRetrievalServiceImpl.java`  | 高级 RAG 流水线，理解混合检索                       |
+| 7️⃣       | `WebSearchAgent.java`                 | 声明式 Agent 定义，理解 `@Agent` + `@SystemMessage` |
+| 8️⃣       | `SkillsAgent.java`                    | 技能加载，理解基于 Markdown 的技能系统              |
+| 9️⃣       | `WorkflowEngine.java`                 | LangGraph4j 工作流引擎                              |
+| 🔟       | `LangChain4jObservabilityConfig.java` | 全链路可观测性                                      |
+
+### 3.4 核心设计模式
+
+| 模式           | 应用位置                     | 理解要点                                     |
+| -------------- | ---------------------------- | -------------------------------------------- |
+| **工厂模式**   | `ChatServiceFactory`         | Spring 容器收集所有 modelType，通过 Map 路由 |
+| **策略模式**   | `VectorStoreStrategyFactory` | 根据配置 type 选择不同的向量库实现           |
+| **模板方法**   | `AbstractChatService`        | 固定流程骨架，子类实现模型构建               |
+| **门面模式**   | `ChatServiceFacade`          | 统一对外接口，内部路由到不同 Provider        |
+| **观察者模式** | 可观测性监听器               | 8 类 Listener 覆盖 AI 调用全生命周期         |
+
+### 3.5 推荐练习
+
+1. **追踪一次 AI 对话**：从前端 SSE 请求 → `ChatServiceFacade` → 模型调用 → SSE 返回，完整走一遍
+2. **新增一个模型**：参考 `DeepseekServiceImpl`，新增一个模型提供商（如 Anthropic Claude）
+3. **测试 RAG 检索**：上传一篇文档到知识库，查看向量化后的片段存储
+4. **调试 Agent 调用**：启用思考模式（thinking mode），看 Supervisor 如何调度子 Agent
+5. **理解 MCP 通信**：启动 Playwright MCP Server，看 Agent 如何调用浏览器工具
+
+---
+
+## 阶段四：高级特性（约 1-2 周）
+
+### 4.1 AIFlow 可视化工作流
+
+```java
+// WorkflowEngine 核心逻辑
+WorkflowGraph<String, WfState> workflow = new WorkflowGraph<>();
+workflow.addNode("llm_answer", llmAnswerNode);
+workflow.addNode("knowledge_retrieval", knowledgeNode);
+workflow.addEdge("start", "llm_answer");
+workflow.addEdge("llm_answer", "knowledge_retrieval");
+```
+
+**学习要点：**
+
+- `StateGraph` 状态机管理
+- `MemorySaver` 检查点（Checkpoint）机制
+- SSE 流式推送节点执行状态
+- 人机交互节点（HumanFeedback）的中断与恢复
+
+### 4.2 可观测性
+
+```java
+// 8 类监听器覆盖全链路
+- AiServiceListener    // AI 服务调用生命周期
+- ChatModelListener    // 模型请求/响应追踪
+- EmbeddingListener    // 嵌入请求追踪
+- AgentListener        // Agent 执行追踪
+- ToolListener         // 工具调用追踪
+- MCPClientListener    // MCP 通信追踪
+- GuardrailListener    // 安全护栏
+- ErrorListener        // 异常追踪
+```
+
+**学习要点：** 如何通过监听器模式实现调用链追踪、日志记录、指标统计
+
+### 4.3 扩展点
+
+| 扩展点         | 实现方式                                | 示例                  |
+| -------------- | --------------------------------------- | --------------------- |
+| 新增模型       | 继承 `AbstractChatService` + `@Service` | `XxxServiceImpl`      |
+| 新增向量库     | 实现 `VectorStoreStrategy` + 注册到工厂 | `PineconeStrategy`    |
+| 新增 Agent     | 声明 `@Agent` 接口 + `@Tool` 工具       | `CustomAgent.java`    |
+| 新增 MCP 工具  | 配置新的 Stdio McpClient                | 在配置中添加 npx 命令 |
+| 新增工作流节点 | 实现 `WorkflowNode` 接口                | `CustomNode.java`     |
+
+---
+
+## 📖 推荐学习资源
+
+### 官方文档
+
+| 资源              | 链接                                       |
+| ----------------- | ------------------------------------------ |
+| RuoYi AI 源码     | https://gitee.com/ageerle/ruoyi-ai         |
+| LangChain4j 文档  | https://docs.langchain4j.dev/              |
+| LangGraph4j 文档  | https://github.com/bsorrentino/langgraph4j |
+| Sa-Token 文档     | https://sa-token.cc/                       |
+| MyBatis-Plus 文档 | https://baomidou.com/                      |
+| Warm-Flow 文档    | https://warm-flow.cn/                      |
+
+### 书籍/课程推荐
+
+| 资源                          | 适合阶段  | 说明             |
+| ----------------------------- | --------- | ---------------- |
+| 《Spring Boot 实战》          | 阶段二    | 理解自动配置原理 |
+| 《MyBatis-Plus 从入门到精通》 | 阶段二    | 深入理解 ORM     |
+| LangChain4j 官方 Cookbook     | 阶段三    | AI 核心必读      |
+| 《企业级 AI 应用开发》        | 阶段三—四 | AI 架构设计思路  |
+
+### 视频教程
+
+| 资源                           | 说明                 |
+| ------------------------------ | -------------------- |
+| B 站 "RuoYi 系列教程"          | 了解 RuoYi 框架基础  |
+| YouTube "LangChain4j Tutorial" | LangChain4j 官方教程 |
+
+---
+
+## 🔬 动手挑战（由浅入深）
+
+### 初级挑战（1-2 天）
+
+- [ ] 修改系统标题：把 "ruoyi-ai" 改名为你的项目名
+- [ ] 新增一个字典类型，并在代码中使用
+- [ ] 通过 Swagger 文档测试几个 API
+
+### 中级挑战（3-5 天）
+
+- [ ] **新增一个模型提供商**（如 Anthropic Claude 3）
+  - 参考 `DeepseekServiceImpl.java`
+  - 只需实现 `buildStreamingChatModel()` 即可
+- [ ] **新增一个自定义 Agent**（如天气查询 Agent）
+  - 定义 `@Agent` 接口
+  - 实现 `@Tool` 方法调用外部天气 API
+- [ ] **接入新的向量库**（如 Pinecone）
+  - 实现 `VectorStoreStrategy` 接口
+  - 注册到 `VectorStoreStrategyFactory`
+
+### 高级挑战（1-2 周）
+
+- [ ] **理解并改造 SSE 流式输出**：从 `ChatServiceFacade` 开始，追踪完整 SSE 流程
+- [ ] **实现一个新的工作流节点**：在 AIFlow 中添加一个"发送邮件"节点
+- [ ] **自定义安全护栏**：实现 `GuardrailListener`，添加敏感词过滤
+- [ ] **搭建多模型路由**：根据用户问题自动选择最优模型
+
+---
+
+## 🧠 常见问题 FAQ
+
+### Q: 我不熟悉 Java / Spring Boot，能直接学 AI 部分吗？
+
+**不能。** AI 模块（`ruoyi-chat`）完全构建在 Spring Boot 框架之上。必须先理解 Spring Boot 的 IoC/DI、AOP、配置体系、MVC 等基础概念。
+
+### Q: 这个项目用的是什么 AI 框架？
+
+**LangChain4j**（Java 版 LangChain）+ **LangGraph4j**（Java 版 LangGraph）。如果你熟悉 Python 的 LangChain，迁移学习会非常快，API 设计几乎一一对应。
+
+### Q: 必须先装向量库吗？
+
+**不需要。** 项目默认配置了 Milvus，但不装向量库不影响基本对话功能。RAG 知识库功能需要向量库时才需要部署。
+
+### Q: 前端在哪？怎么启动？
+
+前端是**两个独立仓库**，不在本项目内：
+
+- 管理端：https://github.com/ageerle/ruoyi-admin（Vue 3 管理后台）
+- 用户端：https://github.com/ageerle/ruoyi-web（Vue 3 对话界面）
+
+### Q: 我想在生产环境使用，需要注意什么？
+
+1. 关闭多租户（`tenant.enable: false`）或配置好租户策略
+2. 关闭演示模式（`demo.enabled: false`）— 已默认关闭
+3. 更换 Sa-Token 的 `jwt-secret-key`
+4. 更换 API 加密的 RSA 密钥对
+5. 关闭 Swagger（`springdoc.api-docs.enabled: false`）
+6. 配置生产级 MySQL/Redis 连接池
+
+---
+
+## 🎯 学习进度检查表
+
+```
+□ 阶段一：项目成功启动，能访问 actuator/health
+□ 阶段二：理解模块结构，能追踪一次登录请求完整流程
+□ 阶段二：理解四层架构（controller/service/mapper/domain）
+□ 阶段三：理解 ChatServiceFactory 工厂模式
+□ 阶段三：理解 RAG 检索流水线（召回 → 融合 → 重排序 → 过滤）
+□ 阶段三：理解 Supervisor 多智能体调度机制
+□ 阶段三：理解 MCP 协议和工具集成原理
+□ 阶段四：理解 AIFlow 工作流引擎执行流程
+□ 阶段四：理解全链路可观测性设计
+□ 拓展：成功新增一个模型/Agent/工具
+```
+
+---
+
+## 最后建议
+
+1. **先跑起来，再看源码** — 亲自启动项目后再阅读代码，理解更深
+2. **断点调试是最好的学习方式** — 在关键节点打断点，跟踪调用链
+3. **带着问题去读源码** — 比如"SSE 是怎么持续推送的？""Agent 是怎么被调度的？"
+4. **从修改开始** — 尝试修改一个小功能（如修改系统标题），建立信心
+5. **善用对比** — 对比 Java 和 Python 的 LangChain 实现，能快速理解设计意图
+
+---
+
+> **版本**：v1.0 | **项目版本**：RuoYi AI 3.0.0 | **更新日期**：2026-07-02

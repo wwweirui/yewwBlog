@@ -42,6 +42,7 @@ pnpm format           # 使用 Prettier 格式化代码
 | `/uses`         | [app/(site)/uses/page.tsx](<app/(site)/uses/page.tsx>)                 | 工具/装备页面                                           |
 | `/social`       | [app/(social)/social/page.tsx](<app/(social)/social/page.tsx>)         | 社交链接页                                              |
 | `/feed.xml`     | [app/feed.xml/route.ts](app/feed.xml/route.ts)                         | RSS 订阅源                                              |
+| `/gold`         | [app/(site)/gold/page.tsx](<app/(site)/gold/page.tsx>)                 | 黄金观察页：黄金走势图、研究报告卡片、分页导航          |
 | `/newsletter`   | [app/newsletter/route.ts](app/newsletter/route.ts)                     | 邮件订阅 API 端点                                       |
 
 根布局（[app/layout.tsx](app/layout.tsx)）负责字体（Space Grotesk + Inter）、主题提供者、统计分析和全局样式。站点布局（[app/(site)/layout.tsx](<app/(site)/layout.tsx>)）添加导航栏、页脚、跳过内容链接和装饰性渐变背景。
@@ -51,7 +52,8 @@ pnpm format           # 使用 Prettier 格式化代码
 - **[lib/](lib/)** — 业务逻辑与配置：
   - `metadata.ts` — 站点元数据、作者信息、BASE_URL 解析（Vercel → 环境变量 → localhost）
   - `utils.ts` — `cn()`（tailwind-merge + clsx）、`sortByDate()`、`calculateReadingTime()`、`debounce()`、分页辅助函数
-  - `content-types.ts` — 从 Content Collections 输出中提取的 `Post` 和 `Page` 类型
+  - `content-types.ts` — 从 Content Collections 输出中提取的 `Post` 和 `Page` 类型（含 `readTimeMinutes`、`headings`、`tagSlugs` 等 transform 输出字段）
+  - `gold-reports.ts` — 黄金研究报告数据数组（来源：世界黄金协会、中金、高盛等），含 `REPORTS_PER_PAGE` 常量
   - `navigation-links.ts` — 导航栏链接定义
   - `projects-data.ts`、`social-data.ts`、`tag-options.ts`、`uses-data.ts` — 静态数据数组
 - **[components/](components/)** — React 组件：
@@ -60,7 +62,10 @@ pnpm format           # 使用 Prettier 格式化代码
   - 页面级组件：`post-preview.tsx`、`table-of-contents.tsx`、`post-series-box.tsx`、`social-share.tsx`、`newsletter-subscribe.tsx`、Hero 变体等
   - `analytics.tsx` — 多提供商统计分析（umami、vercel、plausible、google），仅在生产环境加载
   - `theme-provider.tsx` — next-themes 封装
-- **[types/](types/)** — 共享 TypeScript 类型（`SiteMetaData`、`AuthorType`、`NavItem`、`PostHeading` 等）
+- **[types/](types/)** — 共享 TypeScript 类型（`SiteMetaData`、`AuthorType`、`NavItem`、`PostHeading`、`GoldReport` 等）
+- **[.claude/](.claude/)** — Claude Code 配置：
+  - `skills/new-blog-post/` — 自定义技能，用于快速创建新博客文章
+  - `projects/.../memory/` — 持久会话记忆文件（用户偏好、项目上下文、关注点记录）
 
 ### Content Collections Frontmatter
 
@@ -95,6 +100,20 @@ status: published | draft
 - `NEXT_PUBLIC_BASE_URL` — 站点基础 URL（默认使用 VERCEL_URL 或 localhost:3000）
 - `NEXT_PUBLIC_UMAMI_SCRIPT_URL` / `NEXT_PUBLIC_UMAMI_WEBSITE_ID` — Umami 统计分析
 - `EMAIL_API_BASE` / `NEXT_PUBLIC_EMAIL_API_KEY` / `NEXT_PUBLIC_EMAIL_GROUP_ID` — 邮件订阅 API
+
+### Spec-Driven Development (LeanSpec)
+
+本项目使用 [LeanSpec](https://github.com/codervisor/leanspec) 进行 **Spec-Driven Development (SDD)**。
+
+- **Specs 存放**：[specs/](specs/) — 每个特性对应一个 markdown spec 文件
+- **配置**：[leanspec.provider.yaml](leanspec.provider.yaml) — `provider: markdown`
+- **Lifecycle**: Draft → Review → Active → Done → Deprecated
+
+```bash
+npx leanspec board       # 看板视图
+npx leanspec stats       # 项目健康度
+npx leanspec ui          # Web UI (localhost:3000)
+```
 
 ## 重要说明
 

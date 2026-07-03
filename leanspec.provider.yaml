@@ -1,0 +1,6 @@
+# LeanSpec Configuration
+# Spec-Driven Development (SDD) for AI-powered development
+# See: https://github.com/codervisor/leanspec
+
+provider: markdown
+directory: specs
